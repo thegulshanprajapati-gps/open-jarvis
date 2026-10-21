@@ -1,43 +1,60 @@
 name: Build OpenJarvis APK
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
+workflow_dispatch:
+push:
+branches: [main]
 
 permissions:
-  contents: read
+contents: read
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+build:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+env:
+  ANDROID_HOME: /usr/local/lib/android/sdk
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+steps:
+  - name: Checkout source
+    uses: actions/checkout@v4
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+  - name: Setup Java
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: '17'
 
-      - name: Install SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+  - name: Setup Android SDK
+    uses: android-actions/setup-android@v3
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.2'
+  - name: Install Android SDK packages
+    run: |
+      sdkmanager --install \
+        "platform-tools" \
+        "platforms;android-34" \
+        "build-tools;34.0.0"
 
-      - name: Build debug APK
-        run: gradle :app:assembleDebug --no-daemon
+  - name: Verify Android SDK
+    run: |
+      echo "ANDROID_HOME=$ANDROID_HOME"
+      sdkmanager --list_installed
+      test -d "$ANDROID_HOME/platforms/android-34"
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: open-jarvis-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+  - name: Setup Gradle
+    uses: gradle/actions/setup-gradle@v4
+    with:
+      gradle-version: '8.2'
+
+  - name: Build debug APK
+    run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+  - name: Upload APK
+    uses: actions/upload-artifact@v4
+    if: success()
+    with:
+      name: open-jarvis-debug-apk
+      path: app/build/outputs/apk/debug/app-debug.apk
+      if-no-files-found: error
+      retention-days: 7
